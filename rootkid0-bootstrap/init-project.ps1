@@ -1,7 +1,6 @@
 param(
   [Parameter(Position = 0)]
-  [string]$ProjectName,
-  [switch]$SetupMcp
+  [string]$ProjectName
 )
 
 Set-StrictMode -Version Latest
@@ -45,36 +44,6 @@ Get-ChildItem -Path $destination -Recurse -File |
     }
   }
 
-$templatePath = Join-Path $repoRoot ".opencode/mcp/servers.template.json"
-$recommendedPath = Join-Path $repoRoot ".opencode/mcp/servers.recommended.template.json"
-
-if ($SetupMcp) {
-  if (Test-Path $templatePath) {
-    $globalMcpDir = Join-Path $HOME ".config/opencode"
-    $globalMcpFile = Join-Path $globalMcpDir "mcp-servers.json"
-
-    New-Item -Path $globalMcpDir -ItemType Directory -Force | Out-Null
-
-    if (Test-Path $globalMcpFile) {
-      $stamp = Get-Date -Format "yyyyMMddHHmmss"
-      $backupPath = "$globalMcpFile.bak.$stamp"
-      Copy-Item -Path $globalMcpFile -Destination $backupPath -Force
-      Write-Host "Backup MCP creado: $backupPath"
-    }
-
-    Copy-Item -Path $templatePath -Destination $globalMcpFile -Force
-    Write-Host "MCP global actualizado: $globalMcpFile"
-
-    if (Test-Path $recommendedPath) {
-      Write-Host "Recomendado: configurar context7, engram y notion usando:"
-      Write-Host "  $recommendedPath"
-    }
-  }
-  else {
-    Write-Warning "No se encontro plantilla MCP en $templatePath. Se omite setup MCP."
-  }
-}
-
 & (Join-Path $scriptDir "notion-bootstrap.ps1") -ProjectName $ProjectName -ProjectDir $destination
 
 $readmePath = Join-Path $destination "README.md"
@@ -89,7 +58,7 @@ Proyecto inicializado desde rootkid0-initializer.
 - Plantillas markdown con placeholders ya resueltos para tu proyecto.
 - Configuracion inicial en `99-common/project.config.json`.
 - Integracion OpenCode MVP (`AGENTS.md`, `.opencode/`, AGENTS locales, skills, MCP y agentes por rol).
-- Setup automatico de Notion (MVP): pagina raiz, fases y secciones del modelo multi-DB.
+- Setup automatico de Notion (MVP): usa MCP Notion preconfigurado por el usuario.
 - Salida de IDs Notion en `99-common/notion-bootstrap.output.json`.
 
 ## Siguientes pasos
@@ -98,7 +67,7 @@ Proyecto inicializado desde rootkid0-initializer.
 2. Ajusta `99-common/project.config.json` segun tu stack y contexto.
 3. Revisa `AGENTS.md` como entrypoint de roles.
 4. Revisa `.opencode/README.md` para el flujo global + subproyectos.
-5. Revisa `.opencode/mcp/README.md` para prerequisitos MCP + Notion.
+5. Confirma prerequisito MCP Notion (preinstalado/configurado) en `.opencode/mcp/README.md`.
 6. Verifica `99-common/notion-bootstrap.output.json`.
 7. Versiona cambios con Git y define tu backlog inicial.
 "@

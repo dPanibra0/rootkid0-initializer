@@ -1,7 +1,7 @@
 {
   "name": "rootkid0-initializer",
-  "version": "0.1.0",
-  "description": "CLI para inicializar proyectos rootkid0 sin subcomando init.",
+  "version": "0.1.1",
+  "description": "CLI para inicializar proyectos rootkid0.",
   "license": "MIT",
   "type": "commonjs",
   "bin": {

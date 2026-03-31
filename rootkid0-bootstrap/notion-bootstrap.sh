@@ -36,56 +36,13 @@ pick_python() {
 
 validate_mcp_config() {
   local mcp_file="$HOME/.config/opencode/mcp-servers.json"
-  local py_bin
-  local py_status
 
   if [[ ! -f "$mcp_file" ]]; then
-    fail "No existe $mcp_file. Configura el MCP global con entrada 'notion' y vuelve a ejecutar init-project."
-  fi
-
-  py_bin="$(pick_python || true)"
-
-  if [[ -n "$py_bin" ]]; then
-    if "$py_bin" - "$mcp_file" <<'PY'; then
-import json
-import sys
-
-path = sys.argv[1]
-try:
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-except Exception:
-    sys.exit(2)
-
-servers = data.get("servers")
-if isinstance(servers, dict) and "notion" in servers:
-    sys.exit(0)
-
-sys.exit(1)
-PY
-      py_status=0
-    else
-      py_status=$?
-    fi
-
-    if [[ "$py_status" -ne 0 ]]; then
-      case "$py_status" in
-        1)
-          fail "Falta el servidor 'notion' en $mcp_file. Agrega la entrada en servers.notion y vuelve a ejecutar init-project."
-          ;;
-        2)
-          fail "El archivo $mcp_file no tiene JSON valido. Corrigelo y vuelve a ejecutar init-project."
-          ;;
-        *)
-          fail "No se pudo validar $mcp_file. Verifica permisos y formato del archivo."
-          ;;
-      esac
-    fi
-    return 0
+    fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $mcp_file con entrada 'notion' antes de ejecutar init-project."
   fi
 
   if ! grep -q '"notion"' "$mcp_file"; then
-    fail "No se detecto la entrada 'notion' en $mcp_file. Agrega el servidor notion y vuelve a ejecutar init-project."
+    fail "Prerequisito faltante: MCP Notion no disponible. Agrega la entrada 'notion' en $mcp_file y vuelve a ejecutar init-project."
   fi
 }
 
@@ -105,30 +62,90 @@ require_command() {
   fi
 }
 
-build_page_payload() {
-  local parent_id="$1"
-  local title="$2"
+resolve_notion_token() {
+  local mcp_file="$HOME/.config/opencode/mcp-servers.json"
+  local token="${NOTION_TOKEN:-}"
+  local py_bin
 
-  printf '{"parent":{"page_id":"%s"},"properties":{"title":{"title":[{"type":"text","text":{"content":"%s"}}]}}}' \
-    "$parent_id" \
-    "$(json_escape "$title")"
+  if [[ -n "$token" ]]; then
+    printf '%s' "$token"
+    return 0
+  fi
+
+  py_bin="$(pick_python || true)"
+  if [[ -n "$py_bin" ]]; then
+    token="$($py_bin - "$mcp_file" <<'PY'
+import json
+import os
+import re
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+value = ""
+servers = data.get("servers", {})
+notion = servers.get("notion", {}) if isinstance(servers, dict) else {}
+env = notion.get("env", {}) if isinstance(notion, dict) else {}
+
+if isinstance(env, dict):
+    raw = env.get("NOTION_TOKEN", "")
+    if isinstance(raw, str):
+        match = re.fullmatch(r"\$\{([^}]+)\}", raw.strip())
+        if match:
+            value = os.environ.get(match.group(1), "")
+        else:
+            value = raw
+
+print(value)
+PY
+)"
+  fi
+
+  if [[ -z "$token" ]]; then
+    fail "No se pudo resolver credencial de Notion. Define NOTION_TOKEN o configura servers.notion.env.NOTION_TOKEN en $mcp_file."
+  fi
+
+  printf '%s' "$token"
+}
+
+build_page_payload() {
+  local parent_mode="$1"
+  local parent_value="$2"
+  local title="$3"
+
+  if [[ "$parent_mode" == "page" ]]; then
+    printf '{"parent":{"page_id":"%s"},"properties":{"title":{"title":[{"type":"text","text":{"content":"%s"}}]}}}' \
+      "$parent_value" \
+      "$(json_escape "$title")"
+    return 0
+  fi
+
+  if [[ "$parent_mode" == "workspace" ]]; then
+    printf '{"parent":{"workspace":true},"properties":{"title":{"title":[{"type":"text","text":{"content":"%s"}}]}}}' \
+      "$(json_escape "$title")"
+    return 0
+  fi
+
+  fail "Modo de parent no soportado para Notion payload: $parent_mode"
 }
 
 create_notion_page() {
-  local parent_id="$1"
-  local title="$2"
+  local parent_mode="$1"
+  local parent_value="$2"
+  local title="$3"
   local payload
   local response_file
   local status
   local py_bin
   local page_id
 
-  payload="$(build_page_payload "$parent_id" "$title")"
+  payload="$(build_page_payload "$parent_mode" "$parent_value" "$title")"
   response_file="$(mktemp)"
 
   status="$(curl -sS -o "$response_file" -w "%{http_code}" \
     -X POST "https://api.notion.com/v1/pages" \
-    -H "Authorization: Bearer $NOTION_TOKEN" \
+    -H "Authorization: Bearer $NOTION_AUTH_TOKEN" \
     -H "Notion-Version: 2022-06-28" \
     -H "Content-Type: application/json" \
     --data "$payload")"
@@ -199,10 +216,10 @@ fi
 
 validate_mcp_config
 require_command "curl"
-require_env "NOTION_TOKEN"
-require_env "NOTION_PARENT_PAGE_ID"
+NOTION_AUTH_TOKEN="$(resolve_notion_token)"
 
 NOTION_WORKSPACE_NAME="${NOTION_WORKSPACE_NAME:-}"
+NOTION_PARENT_PAGE_ID="${NOTION_PARENT_PAGE_ID:-}"
 
 echo "Iniciando bootstrap automatico de Notion..."
 
@@ -211,7 +228,18 @@ if [[ -n "$NOTION_WORKSPACE_NAME" ]]; then
   root_title="$NOTION_WORKSPACE_NAME - $PROJECT_NAME"
 fi
 
-project_root_page_id="$(create_notion_page "$NOTION_PARENT_PAGE_ID" "$root_title")"
+parent_mode="workspace"
+parent_value=""
+
+if [[ -n "$NOTION_PARENT_PAGE_ID" ]]; then
+  parent_mode="page"
+  parent_value="$NOTION_PARENT_PAGE_ID"
+  echo "Modo parent Notion: page ($NOTION_PARENT_PAGE_ID)"
+else
+  echo "Modo parent Notion: workspace (NOTION_PARENT_PAGE_ID no definido)"
+fi
+
+project_root_page_id="$(create_notion_page "$parent_mode" "$parent_value" "$root_title")"
 echo "Pagina raiz creada: $project_root_page_id"
 
 phase_names=(
@@ -229,7 +257,7 @@ phase_ids=()
 common_page_id=""
 
 for phase in "${phase_names[@]}"; do
-  phase_id="$(create_notion_page "$project_root_page_id" "$phase")"
+  phase_id="$(create_notion_page "page" "$project_root_page_id" "$phase")"
   phase_ids+=("$phase_id")
   echo "Pagina creada ($phase): $phase_id"
   if [[ "$phase" == "99-common" ]]; then
@@ -253,7 +281,7 @@ section_names=(
 
 section_ids=()
 for section in "${section_names[@]}"; do
-  section_id="$(create_notion_page "$common_page_id" "$section")"
+  section_id="$(create_notion_page "page" "$common_page_id" "$section")"
   section_ids+=("$section_id")
   echo "Seccion modelo MVP creada ($section): $section_id"
 done
@@ -266,6 +294,7 @@ timestamp_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo "  \"project_name\": \"$(json_escape "$PROJECT_NAME")\","
   echo "  \"workspace_name\": \"$(json_escape "$NOTION_WORKSPACE_NAME")\","
   echo "  \"created_at_utc\": \"$timestamp_utc\","
+  echo "  \"notion_parent_mode\": \"$parent_mode\","
   echo "  \"notion_parent_page_id\": \"$(json_escape "$NOTION_PARENT_PAGE_ID")\","
   echo "  \"project_root_page_id\": \"$project_root_page_id\","
   echo "  \"phase_pages\": {"

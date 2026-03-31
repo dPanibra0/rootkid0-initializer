@@ -49,32 +49,6 @@ replace_project_placeholders() {
   done < <(find "$destination" -type f \( -name "*.md" -o -name "*.txt" -o -name "*.json" -o -name "*.yml" -o -name "*.yaml" -o -name "*.ini" -o -name "*.cfg" \) -print0)
 }
 
-setup_global_mcp_config() {
-  local repo_root="$1"
-  local template_file="$repo_root/.opencode/mcp/servers.template.json"
-  local target_dir="$HOME/.config/opencode"
-  local target_file="$target_dir/mcp-servers.json"
-  local backup_file
-
-  if [[ ! -f "$template_file" ]]; then
-    echo "Aviso: No se encontro $template_file. Se omite setup MCP." >&2
-    return 0
-  fi
-
-  mkdir -p "$target_dir"
-
-  if [[ -f "$target_file" ]]; then
-    backup_file="$target_file.bak.$(date +%Y%m%d%H%M%S)"
-    cp "$target_file" "$backup_file"
-    echo "Backup MCP creado: $backup_file"
-  fi
-
-  cp "$template_file" "$target_file"
-  echo "MCP global actualizado: $target_file"
-  echo "Recomendado: configurar context7, engram y notion usando:"
-  echo "  $repo_root/.opencode/mcp/servers.recommended.template.json"
-}
-
 generate_project_readme() {
   local destination="$1"
   local project_name="$2"
@@ -90,7 +64,7 @@ Proyecto inicializado desde rootkid0-initializer.
 - Plantillas markdown con placeholders ya resueltos para tu proyecto.
 - Configuracion inicial en \`99-common/project.config.json\`.
 - Integracion OpenCode MVP (\`AGENTS.md\`, \`.opencode/\`, AGENTS locales, skills, MCP y agentes por rol).
-- Setup automatico de Notion (MVP): pagina raiz, fases y secciones del modelo multi-DB.
+- Setup automatico de Notion (MVP): usa MCP Notion preconfigurado por el usuario.
 - Salida de IDs Notion en \`99-common/notion-bootstrap.output.json\`.
 
 ## Siguientes pasos
@@ -99,7 +73,7 @@ Proyecto inicializado desde rootkid0-initializer.
 2. Ajusta \`99-common/project.config.json\` segun tu stack y contexto.
 3. Revisa \`AGENTS.md\` como entrypoint de roles.
 4. Revisa \`.opencode/README.md\` para el flujo global + subproyectos.
-5. Revisa \`.opencode/mcp/README.md\` para prerequisitos MCP + Notion.
+5. Confirma prerequisito MCP Notion (preinstalado/configurado) en \`.opencode/mcp/README.md\`.
 6. Verifica \`99-common/notion-bootstrap.output.json\`.
 7. Versiona cambios con Git y define tu backlog inicial.
 EOF

@@ -8,17 +8,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
 print_usage() {
-  echo "Uso: ./rootkid0-bootstrap/init-project.sh [--setup-mcp] <project-name>"
+  echo "Uso: ./rootkid0-bootstrap/init-project.sh <project-name>"
 }
 
-SETUP_MCP=false
 PROJECT_NAME=""
 
 for arg in "$@"; do
   case "$arg" in
-    --setup-mcp)
-      SETUP_MCP=true
-      ;;
     -h|--help)
       print_usage
       exit 0
@@ -54,10 +50,6 @@ mkdir -p "$DESTINATION"
 copy_baseline "$REPO_ROOT" "$DESTINATION"
 replace_project_placeholders "$DESTINATION" "$PROJECT_NAME"
 generate_project_readme "$DESTINATION" "$PROJECT_NAME"
-
-if [[ "$SETUP_MCP" == "true" ]]; then
-  setup_global_mcp_config "$REPO_ROOT"
-fi
 
 bash "$SCRIPT_DIR/notion-bootstrap.sh" --project-name "$PROJECT_NAME" --project-dir "$DESTINATION"
 

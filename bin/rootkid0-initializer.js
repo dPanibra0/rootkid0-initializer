@@ -5,25 +5,18 @@ const path = require("node:path");
 
 const argv = process.argv.slice(2);
 let projectName = "";
-let setupMcp = false;
 
 function printHelp() {
-  console.log("Uso: rootkid0-initializer [--setup-mcp] <project-name>");
+  console.log("Uso: rootkid0-initializer <project-name>");
   console.log("");
   console.log("Ejemplos:");
   console.log("  npx rootkid0-initializer my-project");
-  console.log("  npx rootkid0-initializer --setup-mcp my-project");
 }
 
 for (const arg of argv) {
   if (arg === "-h" || arg === "--help") {
     printHelp();
     process.exit(0);
-  }
-
-  if (arg === "--setup-mcp") {
-    setupMcp = true;
-    continue;
   }
 
   if (arg.startsWith("-")) {
@@ -51,10 +44,6 @@ if (process.platform === "win32") {
   command = "powershell";
   commandArgs = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psScript];
 
-  if (setupMcp) {
-    commandArgs.push("-SetupMcp");
-  }
-
   if (projectName) {
     commandArgs.push(projectName);
   }
@@ -62,10 +51,6 @@ if (process.platform === "win32") {
   const shScript = path.join(packageRoot, "rootkid0-bootstrap", "init-project.sh");
   command = "bash";
   commandArgs = [shScript];
-
-  if (setupMcp) {
-    commandArgs.push("--setup-mcp");
-  }
 
   if (projectName) {
     commandArgs.push(projectName);

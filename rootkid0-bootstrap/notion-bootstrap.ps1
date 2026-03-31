@@ -20,30 +20,80 @@ function Require-Env([string]$Name) {
   }
 }
 
-function Get-NotionPagePayload([string]$ParentPageId, [string]$Title) {
-  return @{
-    parent = @{ page_id = $ParentPageId }
-    properties = @{
-      title = @{
-        title = @(
-          @{
-            type = "text"
-            text = @{ content = $Title }
-          }
-        )
+function Resolve-NotionToken([string]$McpFile) {
+  $token = [Environment]::GetEnvironmentVariable("NOTION_TOKEN")
+  if (-not [string]::IsNullOrWhiteSpace($token)) {
+    return $token
+  }
+
+  try {
+    $raw = Get-Content -Path $McpFile -Raw | ConvertFrom-Json
+    $fromConfig = $raw.servers.notion.env.NOTION_TOKEN
+  }
+  catch {
+    $fromConfig = ""
+  }
+
+  if ($fromConfig -is [string]) {
+    if ($fromConfig -match '^\$\{(.+)\}$') {
+      $refVar = $Matches[1]
+      $resolved = [Environment]::GetEnvironmentVariable($refVar)
+      if (-not [string]::IsNullOrWhiteSpace($resolved)) {
+        return $resolved
       }
     }
-  } | ConvertTo-Json -Depth 10
+    elseif (-not [string]::IsNullOrWhiteSpace($fromConfig)) {
+      return $fromConfig
+    }
+  }
+
+  Fail "No se pudo resolver credencial de Notion. Define NOTION_TOKEN o configura servers.notion.env.NOTION_TOKEN en $McpFile."
 }
 
-function New-NotionPage([string]$ParentPageId, [string]$Title) {
+function Get-NotionPagePayload([string]$ParentMode, [string]$ParentValue, [string]$Title) {
+  if ($ParentMode -eq "page") {
+    return @{
+      parent = @{ page_id = $ParentValue }
+      properties = @{
+        title = @{
+          title = @(
+            @{
+              type = "text"
+              text = @{ content = $Title }
+            }
+          )
+        }
+      }
+    } | ConvertTo-Json -Depth 10
+  }
+
+  if ($ParentMode -eq "workspace") {
+    return @{
+      parent = @{ workspace = $true }
+      properties = @{
+        title = @{
+          title = @(
+            @{
+              type = "text"
+              text = @{ content = $Title }
+            }
+          )
+        }
+      }
+    } | ConvertTo-Json -Depth 10
+  }
+
+  Fail "Modo de parent no soportado para Notion payload: $ParentMode"
+}
+
+function New-NotionPage([string]$ParentMode, [string]$ParentValue, [string]$Title) {
   $headers = @{
-    Authorization    = "Bearer $env:NOTION_TOKEN"
+    Authorization    = "Bearer $script:NotionToken"
     "Notion-Version" = "2022-06-28"
     "Content-Type"   = "application/json"
   }
 
-  $body = Get-NotionPagePayload -ParentPageId $ParentPageId -Title $Title
+  $body = Get-NotionPagePayload -ParentMode $ParentMode -ParentValue $ParentValue -Title $Title
 
   try {
     $response = Invoke-RestMethod -Method Post -Uri "https://api.notion.com/v1/pages" -Headers $headers -Body $body
@@ -70,24 +120,17 @@ if (-not (Test-Path -LiteralPath $ProjectDir)) {
 $mcpFile = Join-Path $HOME ".config/opencode/mcp-servers.json"
 
 if (-not (Test-Path -LiteralPath $mcpFile)) {
-  Fail "No existe $mcpFile. Configura MCP global con servidor notion y vuelve a ejecutar init-project."
+  Fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $mcpFile con entrada notion antes de ejecutar init-project."
 }
 
-try {
-  $mcpConfig = Get-Content -Path $mcpFile -Raw | ConvertFrom-Json
-}
-catch {
-  Fail "El archivo $mcpFile no tiene JSON valido. Corrigelo y vuelve a ejecutar init-project."
+if (-not (Select-String -Path $mcpFile -Pattern '"notion"' -Quiet)) {
+  Fail "Prerequisito faltante: MCP Notion no disponible. Agrega entrada notion en $mcpFile y vuelve a ejecutar init-project."
 }
 
-if ($null -eq $mcpConfig.servers -or $null -eq $mcpConfig.servers.notion) {
-  Fail "Falta entrada servers.notion en $mcpFile. Agregala y vuelve a ejecutar init-project."
-}
-
-Require-Env "NOTION_TOKEN"
-Require-Env "NOTION_PARENT_PAGE_ID"
+$script:NotionToken = Resolve-NotionToken -McpFile $mcpFile
 
 $workspaceName = [Environment]::GetEnvironmentVariable("NOTION_WORKSPACE_NAME")
+$parentPageId = [Environment]::GetEnvironmentVariable("NOTION_PARENT_PAGE_ID")
 
 Write-Host "Iniciando bootstrap automatico de Notion..."
 
@@ -96,7 +139,19 @@ if (-not [string]::IsNullOrWhiteSpace($workspaceName)) {
   $rootTitle = "$workspaceName - $ProjectName"
 }
 
-$projectRootPageId = New-NotionPage -ParentPageId $env:NOTION_PARENT_PAGE_ID -Title $rootTitle
+$parentMode = "workspace"
+$parentValue = ""
+
+if (-not [string]::IsNullOrWhiteSpace($parentPageId)) {
+  $parentMode = "page"
+  $parentValue = $parentPageId
+  Write-Host "Modo parent Notion: page ($parentPageId)"
+}
+else {
+  Write-Host "Modo parent Notion: workspace (NOTION_PARENT_PAGE_ID no definido)"
+}
+
+$projectRootPageId = New-NotionPage -ParentMode $parentMode -ParentValue $parentValue -Title $rootTitle
 Write-Host "Pagina raiz creada: $projectRootPageId"
 
 $phaseNames = @(
@@ -114,7 +169,7 @@ $phaseMap = [ordered]@{}
 $commonPageId = ""
 
 foreach ($phase in $phaseNames) {
-  $phaseId = New-NotionPage -ParentPageId $projectRootPageId -Title $phase
+  $phaseId = New-NotionPage -ParentMode "page" -ParentValue $projectRootPageId -Title $phase
   $phaseMap[$phase] = $phaseId
   Write-Host "Pagina creada ($phase): $phaseId"
   if ($phase -eq "99-common") {
@@ -139,7 +194,7 @@ $sectionNames = @(
 $sectionMap = [ordered]@{}
 
 foreach ($section in $sectionNames) {
-  $sectionId = New-NotionPage -ParentPageId $commonPageId -Title $section
+  $sectionId = New-NotionPage -ParentMode "page" -ParentValue $commonPageId -Title $section
   $sectionMap[$section] = $sectionId
   Write-Host "Seccion modelo MVP creada ($section): $sectionId"
 }
@@ -150,7 +205,8 @@ $result = [ordered]@{
   project_name = $ProjectName
   workspace_name = $workspaceName
   created_at_utc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-  notion_parent_page_id = $env:NOTION_PARENT_PAGE_ID
+  notion_parent_mode = $parentMode
+  notion_parent_page_id = $parentPageId
   project_root_page_id = $projectRootPageId
   phase_pages = $phaseMap
   model_sections = $sectionMap

@@ -46,9 +46,6 @@ Cada subproyecto trabaja con su `AGENTS.md` local y su `skills/` local.
 
 ```bash
 npx rootkid0-initializer my-project
-
-# Opcional: configurar MCP global baseline
-npx rootkid0-initializer --setup-mcp my-project
 ```
 
 ### Uso directo de scripts (fallback)
@@ -58,18 +55,12 @@ npx rootkid0-initializer --setup-mcp my-project
 ```bash
 chmod +x rootkid0-bootstrap/init-project.sh
 ./rootkid0-bootstrap/init-project.sh my-project
-
-# Opcional: configurar MCP global baseline
-./rootkid0-bootstrap/init-project.sh --setup-mcp my-project
 ```
 
 #### PowerShell
 
 ```powershell
 ./rootkid0-bootstrap/init-project.ps1 my-project
-
-# Opcional: configurar MCP global baseline
-./rootkid0-bootstrap/init-project.ps1 -SetupMcp my-project
 ```
 
 El script crea una carpeta nueva con la estructura actual del repositorio, excluye `rootkid0-bootstrap/` y `automation/`, reemplaza `{{PROJECT_NAME}}`, mantiene `AGENTS.md`, genera un README inicial y ejecuta bootstrap automatico de Notion.
@@ -78,16 +69,18 @@ El script crea una carpeta nueva con la estructura actual del repositorio, exclu
 
 El init ejecuta bootstrap Notion automaticamente despues de crear el proyecto. Requisitos obligatorios:
 
-- MCP global en `~/.config/opencode/mcp-servers.json`.
-- Entrada `servers.notion` presente en ese archivo.
-- Variables de entorno:
-  - `NOTION_TOKEN` (obligatoria)
-  - `NOTION_PARENT_PAGE_ID` (obligatoria)
+- MCP Notion preinstalado/configurado por el usuario (el initializer no instala ni modifica MCP global).
+- Archivo global `~/.config/opencode/mcp-servers.json` con entrada `notion`.
+- Credencial de Notion resuelta desde MCP Notion (o `NOTION_TOKEN` si la defines manualmente).
+- Variables opcionales:
+  - `NOTION_PARENT_PAGE_ID` (recomendado para crear bajo una raiz definida)
   - `NOTION_WORKSPACE_NAME` (opcional)
 
 Resultado del bootstrap:
 
 - Crea pagina raiz del proyecto en Notion.
+- Si existe `NOTION_PARENT_PAGE_ID`, crea la pagina raiz como hija de ese parent.
+- Si no existe `NOTION_PARENT_PAGE_ID`, crea la pagina raiz a nivel workspace del usuario.
 - Crea paginas por fase: `01-business` a `07-production` y `99-common`.
 - Crea secciones placeholder del modelo multi-DB: `Projects`, `Phases`, `Deliverables`, `Backlog`, `Risks`, `Decisions`, `Incidents`.
 - Guarda IDs generados en `99-common/notion-bootstrap.output.json` dentro del proyecto creado.
