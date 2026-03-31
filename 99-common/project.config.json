@@ -1,0 +1,7 @@
+{
+  "projectName": "{{PROJECT_NAME}}",
+  "type": "backend",
+  "architecture": "microservices",
+  "useNotion": false,
+  "useDocker": true
+}
