@@ -26,7 +26,7 @@ if (Test-Path $destination) {
 Write-Host "Creando proyecto: $ProjectName"
 New-Item -Path $destination -ItemType Directory | Out-Null
 
-$excludedItems = @("rootkid0-bootstrap", "bootstrap", "automation", ".git", "README.md", "desktop.ini")
+$excludedItems = @("rootkid0-bootstrap", "rootkid-bootstrap", "bootstrap", "automation", ".git", "README.md", "desktop.ini")
 $itemsToCopy = Get-ChildItem -Path $repoRoot -Force |
   Where-Object { $excludedItems -notcontains $_.Name }
 
@@ -75,6 +75,8 @@ if ($SetupMcp) {
   }
 }
 
+& (Join-Path $scriptDir "notion-bootstrap.ps1") -ProjectName $ProjectName -ProjectDir $destination
+
 $readmePath = Join-Path $destination "README.md"
 $readmeContent = @"
 # $ProjectName
@@ -87,7 +89,8 @@ Proyecto inicializado desde rootkid0-initializer.
 - Plantillas markdown con placeholders ya resueltos para tu proyecto.
 - Configuracion inicial en `99-common/project.config.json`.
 - Integracion OpenCode MVP (`AGENTS.md`, `.opencode/`, AGENTS locales, skills, MCP y agentes por rol).
-- MCP recomendados: `context7`, `engram`, `notion` (configuracion global opcional).
+- Setup automatico de Notion (MVP): pagina raiz, fases y secciones del modelo multi-DB.
+- Salida de IDs Notion en `99-common/notion-bootstrap.output.json`.
 
 ## Siguientes pasos
 
@@ -95,8 +98,9 @@ Proyecto inicializado desde rootkid0-initializer.
 2. Ajusta `99-common/project.config.json` segun tu stack y contexto.
 3. Revisa `AGENTS.md` como entrypoint de roles.
 4. Revisa `.opencode/README.md` para el flujo global + subproyectos.
-5. Revisa `.opencode/mcp/README.md` para configurar MCP global.
-6. Versiona cambios con Git y define tu backlog inicial.
+5. Revisa `.opencode/mcp/README.md` para prerequisitos MCP + Notion.
+6. Verifica `99-common/notion-bootstrap.output.json`.
+7. Versiona cambios con Git y define tu backlog inicial.
 "@
 Set-Content -Path $readmePath -Value $readmeContent
 
@@ -107,4 +111,4 @@ Write-Host "  1) Set-Location `"$ProjectName`""
 Write-Host "  2) Completar 01-business/ a 07-production/"
 Write-Host "  3) Ajustar 99-common/project.config.json"
 Write-Host "  4) Revisar AGENTS.md y .opencode/README.md"
-Write-Host "  5) MCP recomendado: context7, engram, notion"
+Write-Host "  5) Revisar 99-common/notion-bootstrap.output.json"

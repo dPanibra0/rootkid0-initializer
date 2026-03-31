@@ -19,4 +19,16 @@ Configura todos los servidores MCP en esta carpeta para evitar definiciones dupl
 - Usar `servers.template.json` como baseline estable.
 - Tomar `servers.recommended.template.json` como punto de partida para agregar `context7`, `engram` y `notion` segun tu entorno.
 
+## Requisito para init automatico de Notion
+
+El bootstrap del proyecto valida este archivo global:
+
+- `~/.config/opencode/mcp-servers.json`
+
+Condicion minima requerida:
+
+- Debe existir entrada `servers.notion`.
+
+Si falta, el init falla con mensaje de correccion porque el setup Notion es automatico en P1.
+
 Sugerencia: referenciar esta carpeta desde scripts de setup del equipo.

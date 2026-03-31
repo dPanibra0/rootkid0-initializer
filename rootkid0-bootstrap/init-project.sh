@@ -59,6 +59,8 @@ if [[ "$SETUP_MCP" == "true" ]]; then
   setup_global_mcp_config "$REPO_ROOT"
 fi
 
+bash "$SCRIPT_DIR/notion-bootstrap.sh" --project-name "$PROJECT_NAME" --project-dir "$DESTINATION"
+
 echo
 echo "Proyecto creado en: $DESTINATION"
 echo "Siguientes pasos:"
@@ -66,4 +68,4 @@ echo "  1) cd \"$PROJECT_NAME\""
 echo "  2) Completar 01-business/ a 07-production/"
 echo "  3) Ajustar 99-common/project.config.json"
 echo "  4) Revisar AGENTS.md y .opencode/README.md"
-echo "  5) MCP recomendado: context7, engram, notion"
+echo "  5) Revisar 99-common/notion-bootstrap.output.json"

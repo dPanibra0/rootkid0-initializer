@@ -16,6 +16,12 @@ Repo base para inicializar proyectos con una estructura estandar por fases.
 - `07-production/` operacion, incidentes y mejora continua.
 - `99-common/` checklist, glosario y configuracion base.
 
+## Planeacion P1 - Notion template (multi-DB)
+
+- `99-common/05-p1-notion-multi-db-plan.md` plan de arquitectura, relaciones, vistas, ritual y DoD.
+- `99-common/06-p1-notion-schema-spec.md` especificacion detallada de schema por DB y propiedades.
+- `99-common/07-p1-notion-manual-setup-checklist.md` checklist ejecutable para setup manual en Notion.
+
 Cada subproyecto trabaja con su `AGENTS.md` local y su `skills/` local.
 
 ## Modelo OpenCode aplicado
@@ -36,7 +42,18 @@ Cada subproyecto trabaja con su `AGENTS.md` local y su `skills/` local.
 
 ## Uso rapido
 
-### Bash
+### NPX (recomendado)
+
+```bash
+npx rootkid0-initializer my-project
+
+# Opcional: configurar MCP global baseline
+npx rootkid0-initializer --setup-mcp my-project
+```
+
+### Uso directo de scripts (fallback)
+
+#### Bash
 
 ```bash
 chmod +x rootkid0-bootstrap/init-project.sh
@@ -46,7 +63,7 @@ chmod +x rootkid0-bootstrap/init-project.sh
 ./rootkid0-bootstrap/init-project.sh --setup-mcp my-project
 ```
 
-### PowerShell
+#### PowerShell
 
 ```powershell
 ./rootkid0-bootstrap/init-project.ps1 my-project
@@ -55,6 +72,24 @@ chmod +x rootkid0-bootstrap/init-project.sh
 ./rootkid0-bootstrap/init-project.ps1 -SetupMcp my-project
 ```
 
-El script crea una carpeta nueva con la estructura actual del repositorio, excluye `rootkid0-bootstrap/` y `automation/`, reemplaza `{{PROJECT_NAME}}`, mantiene `AGENTS.md` y genera un README inicial.
+El script crea una carpeta nueva con la estructura actual del repositorio, excluye `rootkid0-bootstrap/` y `automation/`, reemplaza `{{PROJECT_NAME}}`, mantiene `AGENTS.md`, genera un README inicial y ejecuta bootstrap automatico de Notion.
+
+## Setup automatico de Notion (MVP)
+
+El init ejecuta bootstrap Notion automaticamente despues de crear el proyecto. Requisitos obligatorios:
+
+- MCP global en `~/.config/opencode/mcp-servers.json`.
+- Entrada `servers.notion` presente en ese archivo.
+- Variables de entorno:
+  - `NOTION_TOKEN` (obligatoria)
+  - `NOTION_PARENT_PAGE_ID` (obligatoria)
+  - `NOTION_WORKSPACE_NAME` (opcional)
+
+Resultado del bootstrap:
+
+- Crea pagina raiz del proyecto en Notion.
+- Crea paginas por fase: `01-business` a `07-production` y `99-common`.
+- Crea secciones placeholder del modelo multi-DB: `Projects`, `Phases`, `Deliverables`, `Backlog`, `Risks`, `Decisions`, `Incidents`.
+- Guarda IDs generados en `99-common/notion-bootstrap.output.json` dentro del proyecto creado.
 
 MCP recomendados para configurar: `context7`, `engram`, `notion`.

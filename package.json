@@ -1,0 +1,38 @@
+{
+  "name": "rootkid0-initializer",
+  "version": "0.1.0",
+  "description": "CLI para inicializar proyectos rootkid0 sin subcomando init.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "rootkid0-initializer": "bin/rootkid0-initializer.js"
+  },
+  "files": [
+    "bin/",
+    "rootkid0-bootstrap/",
+    ".opencode/",
+    "01-business/",
+    "02-proposal/",
+    "03-design/",
+    "04-management/",
+    "05-development/",
+    "06-deployment/",
+    "07-production/",
+    "99-common/",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node bin/rootkid0-initializer.js --help"
+  },
+  "keywords": [
+    "bootstrap",
+    "initializer",
+    "opencode",
+    "rootkid"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -30,7 +30,7 @@ copy_baseline() {
     name="$(basename "$item")"
 
     case "$name" in
-      rootkid0-bootstrap|bootstrap|automation|.git|README.md|desktop.ini)
+      rootkid0-bootstrap|rootkid-bootstrap|bootstrap|automation|.git|README.md|desktop.ini)
         continue
         ;;
     esac
@@ -90,7 +90,8 @@ Proyecto inicializado desde rootkid0-initializer.
 - Plantillas markdown con placeholders ya resueltos para tu proyecto.
 - Configuracion inicial en \`99-common/project.config.json\`.
 - Integracion OpenCode MVP (\`AGENTS.md\`, \`.opencode/\`, AGENTS locales, skills, MCP y agentes por rol).
-- MCP recomendados: \`context7\`, \`engram\`, \`notion\` (configuracion global opcional).
+- Setup automatico de Notion (MVP): pagina raiz, fases y secciones del modelo multi-DB.
+- Salida de IDs Notion en \`99-common/notion-bootstrap.output.json\`.
 
 ## Siguientes pasos
 
@@ -98,7 +99,8 @@ Proyecto inicializado desde rootkid0-initializer.
 2. Ajusta \`99-common/project.config.json\` segun tu stack y contexto.
 3. Revisa \`AGENTS.md\` como entrypoint de roles.
 4. Revisa \`.opencode/README.md\` para el flujo global + subproyectos.
-5. Revisa \`.opencode/mcp/README.md\` para configurar MCP global.
-6. Versiona cambios con Git y define tu backlog inicial.
+5. Revisa \`.opencode/mcp/README.md\` para prerequisitos MCP + Notion.
+6. Verifica \`99-common/notion-bootstrap.output.json\`.
+7. Versiona cambios con Git y define tu backlog inicial.
 EOF
 }
