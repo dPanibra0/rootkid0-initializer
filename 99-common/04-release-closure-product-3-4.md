@@ -1,47 +1,64 @@
-# Release Closure - Product 3 and 4
+# Release Notes - v0.2.0
 
-## Scope
+## Objetivo del release
 
-Este documento cierra formalmente:
+Formalizar el estado de entrega de los productos del framework y publicar una version operativa estable para uso interno.
 
-- Producto 3: Estructura local ejecutable.
-- Producto 4: CLI / bootstrap initializer.
+## Resumen ejecutivo
 
-## Final Decision
+- Version objetivo: `v0.2.0`
+- Fecha de cierre: `2026-04-01`
+- Estado global del release: `APROBADO`
+- Productos entregados y funcionales: `1`, `3`, `4`
+- Producto no incluido en este release: `2` (pendiente)
 
-- Product 3 Status: DONE
-- Product 4 Status: DONE
-- Closure date: 2026-03-31
-- Closure mode: Opcion 1 (MCP recomendados con placeholders, sin bloqueo de release)
+## Matriz de estado por producto
 
-## Evidence - Product 3
+1. `Producto 1` - Plantilla de Notion: `DONE`
+2. `Producto 2` - Estructura documental cliente en Drive: `PENDING`
+3. `Producto 3` - Workspace local ejecutable: `DONE`
+4. `Producto 4` - Sistema de bootstrap/CLI: `DONE`
+
+## Evidencia por producto
+
+### Producto 1 - Plantilla de Notion (`DONE`)
+
+- Plan funcional multi-DB definido: `99-common/05-p1-notion-multi-db-plan.md`.
+- Especificacion de schema detallada por base: `99-common/06-p1-notion-schema-spec.md`.
+- Checklist de setup manual listo para ejecucion: `99-common/07-p1-notion-manual-setup-checklist.md`.
+- Alcance MVP claro: setup manual en Notion, sin API ni automatizaciones.
+
+### Producto 3 - Workspace local ejecutable (`DONE`)
 
 - Estructura por fases disponible: `01-business/` a `07-production/` y `99-common/`.
 - Modelo local por subproyecto aplicado: `AGENTS.md` + `skills/SKILL.md`.
-- Sin `.opencode/` local en subproyectos.
-- OpenCode global centralizado en `.opencode/`.
-- Gates operativos definidos fase por fase (Discovery, Proposal, Design, Management, Development, Deployment, Production).
+- Sin `.opencode/` local en subproyectos; configuracion centralizada en `.opencode/`.
+- Gates operativos definidos por fase (Discovery, Proposal, Design, Management, Development, Deployment, Production).
 
-## Evidence - Product 4
+### Producto 4 - Sistema de bootstrap/CLI (`DONE`)
 
 - Bootstrap Bash operativo: `rootkid0-bootstrap/init-project.sh`.
 - Bootstrap PowerShell operativo por implementacion: `rootkid0-bootstrap/init-project.ps1`.
-- Opcion MCP recomendada (no obligatoria):
-  - Bash: `--setup-mcp`
-  - PowerShell: `-SetupMcp`
-- Placeholders de proyecto reemplazables con `{{PROJECT_NAME}}`.
+- Reemplazo de placeholders de proyecto soportado con `{{PROJECT_NAME}}`.
+- Setup MCP recomendado mediante plantilla: `.opencode/mcp/servers.recommended.template.json`.
 
-## Validation Summary
+### Producto 2 - Estructura documental cliente en Drive (`PENDING`)
 
-- Bash syntax check: OK (`init-project.sh`, `helpers.sh`).
-- Smoke test Bash (creacion de proyecto desde baseline actual): OK.
+- No forma parte del cierre operativo de `v0.2.0`.
+- Queda como siguiente entrega para completar el set de 4 productos.
+
+## Validaciones realizadas
+
+- Bash syntax check: `OK` (`init-project.sh`, `helpers.sh`).
+- Smoke test Bash de creacion de proyecto: `OK`.
 - Validacion de `pwsh` en este entorno: no disponible (`pwsh: command not found`).
 
-## Accepted Deferments (Post-Release)
+## Decisiones de release
 
-- MCP `context7`, `engram`, `notion` quedan como recomendados con plantilla y placeholders.
-- Configuracion final de comandos/args/env especificos se define por entorno de equipo.
+- Se libera `v0.2.0` con `Producto 1`, `Producto 3` y `Producto 4` en estado funcional.
+- `Producto 2` se mantiene fuera de alcance del release y pasa como pendiente de roadmap inmediato.
+- Se mantiene modo MCP recomendado con placeholders para configuracion por entorno.
 
-## Immediate Next Step
+## Proximo paso
 
-- Publicar este estado en repositorio Git como cierre de Producto 3 y 4.
+- Crear tag Git `v0.2.0` y publicar nota de release con esta matriz de estado.
