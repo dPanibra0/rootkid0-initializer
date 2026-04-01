@@ -165,7 +165,12 @@ function Parse-OpenCodeEvents([string]$EventsPath) {
     $result = $combined | ConvertFrom-Json
   }
   catch {
-    Fail "OpenCode no devolvio JSON valido para bootstrap Notion."
+    $preview = if ($combined.Length -gt 200) { $combined.Substring(0, 200) + "..." } else { $combined }
+    Fail "OpenCode no devolvio JSON valido para bootstrap Notion. Detalle parser: $($_.Exception.Message). Vista previa: $preview"
+  }
+
+  if ($result -isnot [pscustomobject] -and $result -isnot [hashtable]) {
+    Fail "OpenCode devolvio JSON invalido: se esperaba un objeto JSON en el nivel raiz."
   }
 
   $requiredPhases = @(
@@ -250,13 +255,32 @@ else {
 
 $instructionFile = [System.IO.Path]::GetTempFileName()
 $eventsFile = [System.IO.Path]::GetTempFileName()
+$opencodeErrFile = [System.IO.Path]::GetTempFileName()
 
 try {
   New-InstructionFile -Path $instructionFile -RootTitle $rootTitle -ParentPageId $parentPageId
 
-  & opencode run --format json --dir $ProjectDir --file $instructionFile "Sigue las instrucciones del archivo adjunto y devuelve SOLO el JSON final." 2>&1 | Set-Content -Path $eventsFile
+  $opencodePrompt = "Sigue las instrucciones del archivo adjunto y devuelve SOLO el JSON final."
+  $opencodeMode = 'opencode run --format json --dir "<project-dir>" --file "<instruction-file>" -- "<prompt>"'
+  $opencodeArgs = @(
+    "run",
+    "--format", "json",
+    "--dir", $ProjectDir,
+    "--file", $instructionFile,
+    "--",
+    $opencodePrompt
+  )
+
+  & opencode @opencodeArgs 2> $opencodeErrFile | Set-Content -Path $eventsFile
   if ($LASTEXITCODE -ne 0) {
-    Fail "Fallo la ejecucion de OpenCode para bootstrap de Notion. Verifica que MCP Notion este disponible y operativo."
+    $stderr = ""
+    if (Test-Path -LiteralPath $opencodeErrFile) {
+      $stderr = (Get-Content -Path $opencodeErrFile -Raw).Trim()
+    }
+    if ([string]::IsNullOrWhiteSpace($stderr)) {
+      $stderr = "sin detalle"
+    }
+    Fail "Fallo la ejecucion de OpenCode para bootstrap de Notion. Modo detectado: $opencodeMode. Error CLI: $stderr. Verifica que MCP Notion este disponible y operativo."
   }
 
   $mcpResult = Parse-OpenCodeEvents -EventsPath $eventsFile
@@ -285,5 +309,8 @@ finally {
   }
   if (Test-Path -LiteralPath $eventsFile) {
     Remove-Item -LiteralPath $eventsFile -Force
+  }
+  if (Test-Path -LiteralPath $opencodeErrFile) {
+    Remove-Item -LiteralPath $opencodeErrFile -Force
   }
 }

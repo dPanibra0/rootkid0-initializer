@@ -211,7 +211,13 @@ fence_match = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", combined, flags=re.DOT
 if fence_match:
     combined = fence_match.group(1).strip()
 
-data = json.loads(combined)
+try:
+    data = json.loads(combined)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"OpenCode devolvio texto pero no JSON valido para bootstrap Notion: {exc}")
+
+if not isinstance(data, dict):
+    raise SystemExit("OpenCode devolvio JSON invalido: se esperaba un objeto JSON en el nivel raiz.")
 
 required_phases = [
     "01-business",
@@ -237,13 +243,29 @@ for top in ["project_root_page_id", "phase_pages", "model_sections"]:
     if top not in data:
         raise SystemExit(f"Falta campo obligatorio en respuesta MCP: {top}")
 
+if not isinstance(data["phase_pages"], dict):
+    raise SystemExit("Campo invalido en respuesta MCP: phase_pages debe ser un objeto JSON.")
+
+if not isinstance(data["model_sections"], dict):
+    raise SystemExit("Campo invalido en respuesta MCP: model_sections debe ser un objeto JSON.")
+
+project_root_page_id = data.get("project_root_page_id")
+if not isinstance(project_root_page_id, str) or not project_root_page_id.strip():
+    raise SystemExit("Campo invalido en respuesta MCP: project_root_page_id no puede estar vacio.")
+
 for key in required_phases:
     if key not in data["phase_pages"]:
         raise SystemExit(f"Falta fase obligatoria en respuesta MCP: {key}")
+    value = data["phase_pages"].get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(f"Id invalido en fase obligatoria MCP: {key}")
 
 for key in required_sections:
     if key not in data["model_sections"]:
         raise SystemExit(f"Falta seccion obligatoria en respuesta MCP: {key}")
+    value = data["model_sections"].get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(f"Id invalido en seccion obligatoria MCP: {key}")
 
 print(json.dumps(data, ensure_ascii=False))
 PY
@@ -305,13 +327,17 @@ fi
 
 instruction_file="$(mktemp)"
 events_file="$(mktemp)"
-trap 'rm -f "$instruction_file" "$events_file"' EXIT
+opencode_err_file="$(mktemp)"
+trap 'rm -f "$instruction_file" "$events_file" "$opencode_err_file"' EXIT
 
 build_instruction_file "$instruction_file" "$root_title" "$NOTION_PARENT_PAGE_ID"
 
-if ! opencode run --format json --dir "$PROJECT_DIR" --file "$instruction_file" \
-  "Sigue las instrucciones del archivo adjunto y devuelve SOLO el JSON final." > "$events_file"; then
-  fail "Fallo la ejecucion de OpenCode para bootstrap de Notion. Verifica que MCP Notion este disponible y operativo."
+opencode_prompt="Sigue las instrucciones del archivo adjunto y devuelve SOLO el JSON final."
+opencode_mode='opencode run --format json --dir "<project-dir>" --file "<instruction-file>" -- "<prompt>"'
+
+if ! opencode run --format json --dir "$PROJECT_DIR" --file="$instruction_file" -- "$opencode_prompt" > "$events_file" 2> "$opencode_err_file"; then
+  opencode_err="$(<"$opencode_err_file")"
+  fail "Fallo la ejecucion de OpenCode para bootstrap de Notion. Modo detectado: $opencode_mode. Error CLI: ${opencode_err:-sin detalle}. Verifica que MCP Notion este disponible y operativo."
 fi
 
 mcp_result_json="$(extract_bootstrap_result "$events_file")"
