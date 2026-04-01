@@ -35,14 +35,39 @@ pick_python() {
 }
 
 validate_mcp_config() {
-  local mcp_file="$HOME/.config/opencode/mcp-servers.json"
+  local mcp_file="$1"
+  local py_bin
+  local has_notion=""
 
   if [[ ! -f "$mcp_file" ]]; then
-    fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $mcp_file con entrada 'notion' antes de ejecutar init-project."
+    fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $mcp_file con entrada notion antes de ejecutar init-project."
   fi
 
-  if ! grep -q '"notion"' "$mcp_file"; then
-    fail "Prerequisito faltante: MCP Notion no disponible. Agrega la entrada 'notion' en $mcp_file y vuelve a ejecutar init-project."
+  py_bin="$(pick_python || true)"
+  if [[ -n "$py_bin" ]]; then
+    has_notion="$($py_bin - "$mcp_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+servers = {}
+if isinstance(data, dict):
+    if isinstance(data.get("servers"), dict):
+        servers = data.get("servers", {})
+    elif isinstance(data.get("mcp"), dict) and isinstance(data["mcp"].get("servers"), dict):
+        servers = data["mcp"]["servers"]
+
+print("yes" if "notion" in servers else "no")
+PY
+)"
+  else
+    has_notion="$(grep -q '"notion"' "$mcp_file" && echo yes || echo no)"
+  fi
+
+  if [[ "$has_notion" != "yes" ]]; then
+    fail "Prerequisito faltante: MCP Notion no disponible. Agrega la entrada notion en $mcp_file y vuelve a ejecutar init-project."
   fi
 }
 
@@ -63,7 +88,7 @@ require_command() {
 }
 
 resolve_notion_token() {
-  local mcp_file="$HOME/.config/opencode/mcp-servers.json"
+  local mcp_file="$1"
   local token="${NOTION_TOKEN:-}"
   local py_bin
 
@@ -84,7 +109,13 @@ with open(sys.argv[1], "r", encoding="utf-8") as f:
     data = json.load(f)
 
 value = ""
-servers = data.get("servers", {})
+servers = {}
+if isinstance(data, dict):
+    if isinstance(data.get("servers"), dict):
+        servers = data.get("servers", {})
+    elif isinstance(data.get("mcp"), dict) and isinstance(data["mcp"].get("servers"), dict):
+        servers = data["mcp"]["servers"]
+
 notion = servers.get("notion", {}) if isinstance(servers, dict) else {}
 env = notion.get("env", {}) if isinstance(notion, dict) else {}
 
@@ -107,6 +138,23 @@ PY
   fi
 
   printf '%s' "$token"
+}
+
+resolve_mcp_config_file() {
+  local opencode_file="$HOME/.config/opencode/opencode.json"
+  local legacy_file="$HOME/.config/opencode/mcp-servers.json"
+
+  if [[ -f "$opencode_file" ]]; then
+    printf '%s' "$opencode_file"
+    return 0
+  fi
+
+  if [[ -f "$legacy_file" ]]; then
+    printf '%s' "$legacy_file"
+    return 0
+  fi
+
+  fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $opencode_file (preferido) o $legacy_file con entrada notion antes de ejecutar init-project."
 }
 
 build_page_payload() {
@@ -214,9 +262,10 @@ if [[ ! -d "$PROJECT_DIR" ]]; then
   fail "No existe el directorio de proyecto: $PROJECT_DIR"
 fi
 
-validate_mcp_config
+mcp_config_file="$(resolve_mcp_config_file)"
+validate_mcp_config "$mcp_config_file"
 require_command "curl"
-NOTION_AUTH_TOKEN="$(resolve_notion_token)"
+NOTION_AUTH_TOKEN="$(resolve_notion_token "$mcp_config_file")"
 
 NOTION_WORKSPACE_NAME="${NOTION_WORKSPACE_NAME:-}"
 NOTION_PARENT_PAGE_ID="${NOTION_PARENT_PAGE_ID:-}"

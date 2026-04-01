@@ -28,7 +28,15 @@ function Resolve-NotionToken([string]$McpFile) {
 
   try {
     $raw = Get-Content -Path $McpFile -Raw | ConvertFrom-Json
-    $fromConfig = $raw.servers.notion.env.NOTION_TOKEN
+    if ($null -ne $raw.servers) {
+      $fromConfig = $raw.servers.notion.env.NOTION_TOKEN
+    }
+    elseif ($null -ne $raw.mcp -and $null -ne $raw.mcp.servers) {
+      $fromConfig = $raw.mcp.servers.notion.env.NOTION_TOKEN
+    }
+    else {
+      $fromConfig = ""
+    }
   }
   catch {
     $fromConfig = ""
@@ -48,6 +56,37 @@ function Resolve-NotionToken([string]$McpFile) {
   }
 
   Fail "No se pudo resolver credencial de Notion. Define NOTION_TOKEN o configura servers.notion.env.NOTION_TOKEN en $McpFile."
+}
+
+function Resolve-McpConfigFile() {
+  $opencodeFile = Join-Path $HOME ".config/opencode/opencode.json"
+  $legacyFile = Join-Path $HOME ".config/opencode/mcp-servers.json"
+
+  if (Test-Path -LiteralPath $opencodeFile) {
+    return $opencodeFile
+  }
+
+  if (Test-Path -LiteralPath $legacyFile) {
+    return $legacyFile
+  }
+
+  Fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $opencodeFile (preferido) o $legacyFile con entrada notion antes de ejecutar init-project."
+}
+
+function Has-NotionServer([string]$McpFile) {
+  try {
+    $raw = Get-Content -Path $McpFile -Raw | ConvertFrom-Json
+    if ($null -ne $raw.servers -and $null -ne $raw.servers.notion) {
+      return $true
+    }
+    if ($null -ne $raw.mcp -and $null -ne $raw.mcp.servers -and $null -ne $raw.mcp.servers.notion) {
+      return $true
+    }
+    return $false
+  }
+  catch {
+    return $false
+  }
 }
 
 function Get-NotionPagePayload([string]$ParentMode, [string]$ParentValue, [string]$Title) {
@@ -117,13 +156,9 @@ if (-not (Test-Path -LiteralPath $ProjectDir)) {
   Fail "No existe el directorio de proyecto: $ProjectDir"
 }
 
-$mcpFile = Join-Path $HOME ".config/opencode/mcp-servers.json"
+$mcpFile = Resolve-McpConfigFile
 
-if (-not (Test-Path -LiteralPath $mcpFile)) {
-  Fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $mcpFile con entrada notion antes de ejecutar init-project."
-}
-
-if (-not (Select-String -Path $mcpFile -Pattern '"notion"' -Quiet)) {
+if (-not (Has-NotionServer -McpFile $mcpFile)) {
   Fail "Prerequisito faltante: MCP Notion no disponible. Agrega entrada notion en $mcpFile y vuelve a ejecutar init-project."
 }
 

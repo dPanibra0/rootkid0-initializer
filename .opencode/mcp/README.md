@@ -26,11 +26,12 @@ El initializer NO instala ni modifica MCP global.
 
 Validacion minima del bootstrap:
 
-- `~/.config/opencode/mcp-servers.json`
+- `~/.config/opencode/opencode.json` (preferido)
+- `~/.config/opencode/mcp-servers.json` (legacy)
 
 Condicion minima requerida:
 
-- Debe existir entrada `notion` en el archivo global.
+- Debe existir entrada `notion` en el archivo global usado.
 
 Si falta, el init falla con mensaje de correccion porque el setup Notion es automatico en P1.
 

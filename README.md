@@ -70,7 +70,7 @@ El script crea una carpeta nueva con la estructura actual del repositorio, exclu
 El init ejecuta bootstrap Notion automaticamente despues de crear el proyecto. Requisitos obligatorios:
 
 - MCP Notion preinstalado/configurado por el usuario (el initializer no instala ni modifica MCP global).
-- Archivo global `~/.config/opencode/mcp-servers.json` con entrada `notion`.
+- Archivo global `~/.config/opencode/opencode.json` (preferido) o `~/.config/opencode/mcp-servers.json` (legacy), con entrada `notion`.
 - Credencial de Notion resuelta desde MCP Notion (o `NOTION_TOKEN` si la defines manualmente).
 - Variables opcionales:
   - `NOTION_PARENT_PAGE_ID` (recomendado para crear bajo una raiz definida)
