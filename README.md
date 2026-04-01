@@ -67,20 +67,23 @@ El script crea una carpeta nueva con la estructura actual del repositorio, exclu
 
 ## Setup automatico de Notion (MVP)
 
-El init ejecuta bootstrap Notion automaticamente despues de crear el proyecto. Requisitos obligatorios:
+El init ejecuta bootstrap Notion automaticamente despues de crear el proyecto en modo MCP-only. Requisitos obligatorios:
 
 - MCP Notion preinstalado/configurado por el usuario (el initializer no instala ni modifica MCP global).
-- Archivo global `~/.config/opencode/opencode.json` (preferido) o `~/.config/opencode/mcp-servers.json` (legacy), con entrada `notion`.
-- Credencial de Notion resuelta desde MCP Notion (o `NOTION_TOKEN` si la defines manualmente).
+- Archivo global `~/.config/opencode/opencode.json` con `mcp.notion` habilitado (tambien soporta `mcp.servers.notion`).
+- OpenCode CLI disponible para ejecutar el flujo de agente que crea la estructura en Notion via MCP.
 - Variables opcionales:
-  - `NOTION_PARENT_PAGE_ID` (recomendado para crear bajo una raiz definida)
+  - `NOTION_PARENT_PAGE_ID` (si existe, el root se crea debajo de ese parent)
   - `NOTION_WORKSPACE_NAME` (opcional)
+
+No se requiere `NOTION_TOKEN` en los scripts de bootstrap.
 
 Resultado del bootstrap:
 
 - Crea pagina raiz del proyecto en Notion.
 - Si existe `NOTION_PARENT_PAGE_ID`, crea la pagina raiz como hija de ese parent.
 - Si no existe `NOTION_PARENT_PAGE_ID`, crea la pagina raiz a nivel workspace del usuario.
+- Toda la interaccion con Notion se ejecuta unicamente via MCP (sin llamadas REST directas desde bootstrap).
 - Crea paginas por fase: `01-business` a `07-production` y `99-common`.
 - Crea secciones placeholder del modelo multi-DB: `Projects`, `Phases`, `Deliverables`, `Backlog`, `Risks`, `Decisions`, `Incidents`.
 - Guarda IDs generados en `99-common/notion-bootstrap.output.json` dentro del proyecto creado.

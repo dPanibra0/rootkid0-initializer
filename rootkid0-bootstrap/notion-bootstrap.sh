@@ -34,52 +34,6 @@ pick_python() {
   return 1
 }
 
-validate_mcp_config() {
-  local mcp_file="$1"
-  local py_bin
-  local has_notion=""
-
-  if [[ ! -f "$mcp_file" ]]; then
-    fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $mcp_file con entrada notion antes de ejecutar init-project."
-  fi
-
-  py_bin="$(pick_python || true)"
-  if [[ -n "$py_bin" ]]; then
-    has_notion="$($py_bin - "$mcp_file" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-servers = {}
-if isinstance(data, dict):
-    if isinstance(data.get("servers"), dict):
-        servers = data.get("servers", {})
-    elif isinstance(data.get("mcp"), dict) and isinstance(data["mcp"].get("servers"), dict):
-        servers = data["mcp"]["servers"]
-
-print("yes" if "notion" in servers else "no")
-PY
-)"
-  else
-    has_notion="$(grep -q '"notion"' "$mcp_file" && echo yes || echo no)"
-  fi
-
-  if [[ "$has_notion" != "yes" ]]; then
-    fail "Prerequisito faltante: MCP Notion no disponible. Agrega la entrada notion en $mcp_file y vuelve a ejecutar init-project."
-  fi
-}
-
-require_env() {
-  local var_name="$1"
-  local var_value="${!var_name:-}"
-
-  if [[ -z "$var_value" ]]; then
-    fail "Variable requerida no definida: $var_name. Exporta $var_name y vuelve a ejecutar init-project."
-  fi
-}
-
 require_command() {
   local command_name="$1"
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -87,147 +41,212 @@ require_command() {
   fi
 }
 
-resolve_notion_token() {
-  local mcp_file="$1"
-  local token="${NOTION_TOKEN:-}"
-  local py_bin
-
-  if [[ -n "$token" ]]; then
-    printf '%s' "$token"
-    return 0
-  fi
-
-  py_bin="$(pick_python || true)"
-  if [[ -n "$py_bin" ]]; then
-    token="$($py_bin - "$mcp_file" <<'PY'
-import json
-import os
-import re
-import sys
-
-with open(sys.argv[1], "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-value = ""
-servers = {}
-if isinstance(data, dict):
-    if isinstance(data.get("servers"), dict):
-        servers = data.get("servers", {})
-    elif isinstance(data.get("mcp"), dict) and isinstance(data["mcp"].get("servers"), dict):
-        servers = data["mcp"]["servers"]
-
-notion = servers.get("notion", {}) if isinstance(servers, dict) else {}
-env = notion.get("env", {}) if isinstance(notion, dict) else {}
-
-if isinstance(env, dict):
-    raw = env.get("NOTION_TOKEN", "")
-    if isinstance(raw, str):
-        match = re.fullmatch(r"\$\{([^}]+)\}", raw.strip())
-        if match:
-            value = os.environ.get(match.group(1), "")
-        else:
-            value = raw
-
-print(value)
-PY
-)"
-  fi
-
-  if [[ -z "$token" ]]; then
-    fail "No se pudo resolver credencial de Notion. Define NOTION_TOKEN o configura servers.notion.env.NOTION_TOKEN en $mcp_file."
-  fi
-
-  printf '%s' "$token"
-}
-
 resolve_mcp_config_file() {
   local opencode_file="$HOME/.config/opencode/opencode.json"
-  local legacy_file="$HOME/.config/opencode/mcp-servers.json"
 
   if [[ -f "$opencode_file" ]]; then
     printf '%s' "$opencode_file"
     return 0
   fi
 
-  if [[ -f "$legacy_file" ]]; then
-    printf '%s' "$legacy_file"
-    return 0
-  fi
-
-  fail "Prerequisito faltante: MCP Notion no disponible. Debe existir $opencode_file (preferido) o $legacy_file con entrada notion antes de ejecutar init-project."
+  fail "Prerequisito faltante: no existe $opencode_file. Configura OpenCode con MCP Notion habilitado y vuelve a ejecutar init-project."
 }
 
-build_page_payload() {
-  local parent_mode="$1"
-  local parent_value="$2"
-  local title="$3"
-
-  if [[ "$parent_mode" == "page" ]]; then
-    printf '{"parent":{"page_id":"%s"},"properties":{"title":{"title":[{"type":"text","text":{"content":"%s"}}]}}}' \
-      "$parent_value" \
-      "$(json_escape "$title")"
-    return 0
-  fi
-
-  if [[ "$parent_mode" == "workspace" ]]; then
-    printf '{"parent":{"workspace":true},"properties":{"title":{"title":[{"type":"text","text":{"content":"%s"}}]}}}' \
-      "$(json_escape "$title")"
-    return 0
-  fi
-
-  fail "Modo de parent no soportado para Notion payload: $parent_mode"
-}
-
-create_notion_page() {
-  local parent_mode="$1"
-  local parent_value="$2"
-  local title="$3"
-  local payload
-  local response_file
-  local status
+validate_mcp_config() {
+  local mcp_file="$1"
   local py_bin
-  local page_id
-
-  payload="$(build_page_payload "$parent_mode" "$parent_value" "$title")"
-  response_file="$(mktemp)"
-
-  status="$(curl -sS -o "$response_file" -w "%{http_code}" \
-    -X POST "https://api.notion.com/v1/pages" \
-    -H "Authorization: Bearer $NOTION_AUTH_TOKEN" \
-    -H "Notion-Version: 2022-06-28" \
-    -H "Content-Type: application/json" \
-    --data "$payload")"
-
-  if [[ "$status" -lt 200 || "$status" -ge 300 ]]; then
-    local error_body
-    error_body="$(tr -d '\n' < "$response_file")"
-    rm -f "$response_file"
-    fail "Notion API devolvio HTTP $status al crear '$title'. Respuesta: $error_body"
-  fi
+  local has_notion=""
 
   py_bin="$(pick_python || true)"
   if [[ -n "$py_bin" ]]; then
-    page_id="$("$py_bin" - "$response_file" <<'PY'
+    has_notion="$($py_bin - "$mcp_file" <<'PY'
 import json
 import sys
 
-with open(sys.argv[1], "r", encoding="utf-8") as f:
-    data = json.load(f)
+def has_enabled_notion(data):
+    if not isinstance(data, dict):
+        return False
 
-print(data.get("id", ""))
+    mcp = data.get("mcp")
+    if isinstance(mcp, dict):
+        notion = mcp.get("notion")
+        if notion not in (None, False):
+            if not (isinstance(notion, dict) and notion.get("enabled") is False):
+                return True
+
+        servers = mcp.get("servers")
+        if isinstance(servers, dict) and "notion" in servers:
+            notion_server = servers.get("notion")
+            if not (isinstance(notion_server, dict) and notion_server.get("enabled") is False):
+                return True
+
+    servers = data.get("servers")
+    if isinstance(servers, dict) and "notion" in servers:
+        notion_server = servers.get("notion")
+        if not (isinstance(notion_server, dict) and notion_server.get("enabled") is False):
+            return True
+
+    return False
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    raw = json.load(f)
+
+print("yes" if has_enabled_notion(raw) else "no")
 PY
 )"
   else
-    page_id="$(grep -o '"id":"[^"]*"' "$response_file" | head -n 1 | cut -d '"' -f 4)"
+    has_notion="$(grep -q '"notion"' "$mcp_file" && echo yes || echo no)"
   fi
 
-  rm -f "$response_file"
+  if [[ "$has_notion" != "yes" ]]; then
+    fail "Prerequisito faltante: MCP Notion no habilitado en $mcp_file. Agrega la entrada mcp.notion (o mcp.servers.notion) y vuelve a ejecutar init-project."
+  fi
+}
 
-  if [[ -z "$page_id" ]]; then
-    fail "No se pudo extraer el id de la pagina creada para '$title'."
+build_instruction_file() {
+  local instruction_file="$1"
+  local root_title="$2"
+  local parent_page_id="$3"
+
+  cat > "$instruction_file" <<EOF
+Objetivo: crear la estructura base de Notion para un proyecto rootkid0-initializer usando UNICAMENTE herramientas MCP de Notion.
+
+Reglas obligatorias:
+- No usar API HTTP directa de Notion.
+- No usar tokens o variables de entorno de Notion.
+- Usar solo las herramientas MCP de Notion disponibles en esta sesion.
+- Responder al final SOLO con un JSON valido, sin markdown y sin texto adicional.
+
+Pasos a ejecutar:
+1) Crear una pagina raiz con titulo exacto: "$root_title".
+2) Si se provee parent_page_id y no esta vacio, crear la pagina raiz como hija de ese page_id.
+3) Crear bajo la pagina raiz estas paginas de fase:
+   - 01-business
+   - 02-proposal
+   - 03-design
+   - 04-management
+   - 05-development
+   - 06-deployment
+   - 07-production
+   - 99-common
+4) Dentro de 99-common crear estas secciones:
+   - Projects
+   - Phases
+   - Deliverables
+   - Backlog
+   - Risks
+   - Decisions
+   - Incidents
+
+Datos de entrada:
+- root_title: "$root_title"
+- parent_page_id: "$parent_page_id"
+
+Formato de salida requerido (JSON exacto en estructura):
+{
+  "notion_parent_mode": "workspace o page",
+  "notion_parent_page_id": "id o vacio",
+  "project_root_page_id": "id",
+  "phase_pages": {
+    "01-business": "id",
+    "02-proposal": "id",
+    "03-design": "id",
+    "04-management": "id",
+    "05-development": "id",
+    "06-deployment": "id",
+    "07-production": "id",
+    "99-common": "id"
+  },
+  "model_sections": {
+    "Projects": "id",
+    "Phases": "id",
+    "Deliverables": "id",
+    "Backlog": "id",
+    "Risks": "id",
+    "Decisions": "id",
+    "Incidents": "id"
+  }
+}
+EOF
+}
+
+extract_bootstrap_result() {
+  local events_file="$1"
+  local py_bin
+  py_bin="$(pick_python || true)"
+
+  if [[ -z "$py_bin" ]]; then
+    fail "No se encontro python/python3 para validar salida JSON de OpenCode."
   fi
 
-  printf '%s' "$page_id"
+  "$py_bin" - "$events_file" <<'PY'
+import json
+import re
+import sys
+
+events_file = sys.argv[1]
+parts = []
+
+with open(events_file, "r", encoding="utf-8") as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            evt = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if evt.get("type") == "text":
+            part = evt.get("part", {})
+            text = part.get("text")
+            if isinstance(text, str) and text.strip():
+                parts.append(text)
+
+combined = "\n".join(parts).strip()
+if not combined:
+    raise SystemExit("No se recibio respuesta de texto desde opencode run.")
+
+fence_match = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", combined, flags=re.DOTALL)
+if fence_match:
+    combined = fence_match.group(1).strip()
+
+data = json.loads(combined)
+
+required_phases = [
+    "01-business",
+    "02-proposal",
+    "03-design",
+    "04-management",
+    "05-development",
+    "06-deployment",
+    "07-production",
+    "99-common",
+]
+required_sections = [
+    "Projects",
+    "Phases",
+    "Deliverables",
+    "Backlog",
+    "Risks",
+    "Decisions",
+    "Incidents",
+]
+
+for top in ["project_root_page_id", "phase_pages", "model_sections"]:
+    if top not in data:
+        raise SystemExit(f"Falta campo obligatorio en respuesta MCP: {top}")
+
+for key in required_phases:
+    if key not in data["phase_pages"]:
+        raise SystemExit(f"Falta fase obligatoria en respuesta MCP: {key}")
+
+for key in required_sections:
+    if key not in data["model_sections"]:
+        raise SystemExit(f"Falta seccion obligatoria en respuesta MCP: {key}")
+
+print(json.dumps(data, ensure_ascii=False))
+PY
 }
 
 PROJECT_NAME=""
@@ -262,15 +281,14 @@ if [[ ! -d "$PROJECT_DIR" ]]; then
   fail "No existe el directorio de proyecto: $PROJECT_DIR"
 fi
 
+require_command "opencode"
 mcp_config_file="$(resolve_mcp_config_file)"
 validate_mcp_config "$mcp_config_file"
-require_command "curl"
-NOTION_AUTH_TOKEN="$(resolve_notion_token "$mcp_config_file")"
 
 NOTION_WORKSPACE_NAME="${NOTION_WORKSPACE_NAME:-}"
 NOTION_PARENT_PAGE_ID="${NOTION_PARENT_PAGE_ID:-}"
 
-echo "Iniciando bootstrap automatico de Notion..."
+echo "Iniciando bootstrap automatico de Notion via MCP..."
 
 root_title="$PROJECT_NAME"
 if [[ -n "$NOTION_WORKSPACE_NAME" ]]; then
@@ -278,102 +296,61 @@ if [[ -n "$NOTION_WORKSPACE_NAME" ]]; then
 fi
 
 parent_mode="workspace"
-parent_value=""
-
 if [[ -n "$NOTION_PARENT_PAGE_ID" ]]; then
   parent_mode="page"
-  parent_value="$NOTION_PARENT_PAGE_ID"
-  echo "Modo parent Notion: page ($NOTION_PARENT_PAGE_ID)"
+  echo "Modo parent Notion (opcional): page ($NOTION_PARENT_PAGE_ID)"
 else
-  echo "Modo parent Notion: workspace (NOTION_PARENT_PAGE_ID no definido)"
+  echo "Modo parent Notion (opcional): workspace"
 fi
 
-project_root_page_id="$(create_notion_page "$parent_mode" "$parent_value" "$root_title")"
-echo "Pagina raiz creada: $project_root_page_id"
+instruction_file="$(mktemp)"
+events_file="$(mktemp)"
+trap 'rm -f "$instruction_file" "$events_file"' EXIT
 
-phase_names=(
-  "01-business"
-  "02-proposal"
-  "03-design"
-  "04-management"
-  "05-development"
-  "06-deployment"
-  "07-production"
-  "99-common"
-)
+build_instruction_file "$instruction_file" "$root_title" "$NOTION_PARENT_PAGE_ID"
 
-phase_ids=()
-common_page_id=""
-
-for phase in "${phase_names[@]}"; do
-  phase_id="$(create_notion_page "page" "$project_root_page_id" "$phase")"
-  phase_ids+=("$phase_id")
-  echo "Pagina creada ($phase): $phase_id"
-  if [[ "$phase" == "99-common" ]]; then
-    common_page_id="$phase_id"
-  fi
-done
-
-if [[ -z "$common_page_id" ]]; then
-  fail "No se pudo crear la pagina 99-common en Notion."
+if ! opencode run --format json --dir "$PROJECT_DIR" --file "$instruction_file" \
+  "Sigue las instrucciones del archivo adjunto y devuelve SOLO el JSON final." > "$events_file"; then
+  fail "Fallo la ejecucion de OpenCode para bootstrap de Notion. Verifica que MCP Notion este disponible y operativo."
 fi
 
-section_names=(
-  "Projects"
-  "Phases"
-  "Deliverables"
-  "Backlog"
-  "Risks"
-  "Decisions"
-  "Incidents"
-)
-
-section_ids=()
-for section in "${section_names[@]}"; do
-  section_id="$(create_notion_page "page" "$common_page_id" "$section")"
-  section_ids+=("$section_id")
-  echo "Seccion modelo MVP creada ($section): $section_id"
-done
+mcp_result_json="$(extract_bootstrap_result "$events_file")"
 
 output_file="$PROJECT_DIR/99-common/notion-bootstrap.output.json"
 timestamp_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-{
-  echo "{"
-  echo "  \"project_name\": \"$(json_escape "$PROJECT_NAME")\","
-  echo "  \"workspace_name\": \"$(json_escape "$NOTION_WORKSPACE_NAME")\","
-  echo "  \"created_at_utc\": \"$timestamp_utc\","
-  echo "  \"notion_parent_mode\": \"$parent_mode\","
-  echo "  \"notion_parent_page_id\": \"$(json_escape "$NOTION_PARENT_PAGE_ID")\","
-  echo "  \"project_root_page_id\": \"$project_root_page_id\","
-  echo "  \"phase_pages\": {"
+py_bin="$(pick_python || true)"
+if [[ -z "$py_bin" ]]; then
+  fail "No se encontro python/python3 para consolidar salida JSON del bootstrap Notion."
+fi
 
-  for i in "${!phase_names[@]}"; do
-    key="${phase_names[$i]}"
-    value="${phase_ids[$i]}"
-    suffix=","
-    if [[ "$i" -eq $((${#phase_names[@]} - 1)) ]]; then
-      suffix=""
-    fi
-    echo "    \"$(json_escape "$key")\": \"$value\"$suffix"
-  done
+"$py_bin" - "$mcp_result_json" "$PROJECT_NAME" "$NOTION_WORKSPACE_NAME" "$timestamp_utc" "$parent_mode" "$NOTION_PARENT_PAGE_ID" "$output_file" <<'PY'
+import json
+import sys
 
-  echo "  },"
-  echo "  \"model_sections\": {"
+mcp_result = json.loads(sys.argv[1])
+project_name = sys.argv[2]
+workspace_name = sys.argv[3]
+timestamp_utc = sys.argv[4]
+parent_mode = sys.argv[5]
+parent_page_id = sys.argv[6]
+output_file = sys.argv[7]
 
-  for i in "${!section_names[@]}"; do
-    key="${section_names[$i]}"
-    value="${section_ids[$i]}"
-    suffix=","
-    if [[ "$i" -eq $((${#section_names[@]} - 1)) ]]; then
-      suffix=""
-    fi
-    echo "    \"$(json_escape "$key")\": \"$value\"$suffix"
-  done
+result = {
+    "project_name": project_name,
+    "workspace_name": workspace_name,
+    "created_at_utc": timestamp_utc,
+    "notion_parent_mode": mcp_result.get("notion_parent_mode", parent_mode),
+    "notion_parent_page_id": mcp_result.get("notion_parent_page_id", parent_page_id),
+    "project_root_page_id": mcp_result["project_root_page_id"],
+    "phase_pages": mcp_result["phase_pages"],
+    "model_sections": mcp_result["model_sections"],
+}
 
-  echo "  }"
-  echo "}"
-} > "$output_file"
+with open(output_file, "w", encoding="utf-8") as f:
+    json.dump(result, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PY
 
-echo "Bootstrap Notion completado."
+echo "Bootstrap Notion completado via MCP."
 echo "Salida guardada en: $output_file"

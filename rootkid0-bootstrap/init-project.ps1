@@ -58,7 +58,7 @@ Proyecto inicializado desde rootkid0-initializer.
 - Plantillas markdown con placeholders ya resueltos para tu proyecto.
 - Configuracion inicial en `99-common/project.config.json`.
 - Integracion OpenCode MVP (`AGENTS.md`, `.opencode/`, AGENTS locales, skills, MCP y agentes por rol).
-- Setup automatico de Notion (MVP): usa MCP Notion preconfigurado por el usuario.
+- Setup automatico de Notion (MVP): MCP-only via OpenCode/agent, sin token en scripts.
 - Salida de IDs Notion en `99-common/notion-bootstrap.output.json`.
 
 ## Siguientes pasos
@@ -67,7 +67,7 @@ Proyecto inicializado desde rootkid0-initializer.
 2. Ajusta `99-common/project.config.json` segun tu stack y contexto.
 3. Revisa `AGENTS.md` como entrypoint de roles.
 4. Revisa `.opencode/README.md` para el flujo global + subproyectos.
-5. Confirma prerequisito MCP Notion (preinstalado/configurado) en `.opencode/mcp/README.md`.
+5. Confirma prerequisito MCP Notion (mcp.notion habilitado en opencode.json) en `.opencode/mcp/README.md`.
 6. Verifica `99-common/notion-bootstrap.output.json`.
 7. Versiona cambios con Git y define tu backlog inicial.
 "@

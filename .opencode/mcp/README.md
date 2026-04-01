@@ -24,14 +24,15 @@ Configura todos los servidores MCP en esta carpeta para evitar definiciones dupl
 El bootstrap del proyecto asume que MCP Notion ya esta preinstalado/configurado por el usuario.
 El initializer NO instala ni modifica MCP global.
 
+El bootstrap interactua con Notion solo via MCP (flujo OpenCode/agent), sin llamadas REST directas ni manejo de token en scripts.
+
 Validacion minima del bootstrap:
 
-- `~/.config/opencode/opencode.json` (preferido)
-- `~/.config/opencode/mcp-servers.json` (legacy)
+- `~/.config/opencode/opencode.json`
 
 Condicion minima requerida:
 
-- Debe existir entrada `notion` en el archivo global usado.
+- Debe existir `mcp.notion` habilitado (tambien soporta `mcp.servers.notion`).
 
 Si falta, el init falla con mensaje de correccion porque el setup Notion es automatico en P1.
 
