@@ -48,6 +48,36 @@ Cada subproyecto trabaja con su `AGENTS.md` local y su `skills/` local.
 npx rootkid0-initializer my-project
 ```
 
+### Generar templates Product 2 en Google Drive
+
+```bash
+npx rootkid0-initializer drive-templates --dry-run
+```
+
+- Comando real: `npx rootkid0-initializer drive-templates --parent-folder-id <DRIVE_FOLDER_ID> --date 2026-04-01 --version v1.0`
+- Para root de My Drive: `npx rootkid0-initializer drive-templates --parent-folder-id root --date 2026-04-01 --version v1.0`
+- Crea carpetas `02-Proposal`, `04-Management`, `06-Deployment`, `07-Production` y sube templates desde `99-common/templates/product2-lightweight/`.
+- Setup completo de credenciales y seguridad en `99-common/08-google-drive-template-generator.md`.
+
+### Politica estricta de secretos (Google Drive)
+
+- Nunca guardar credenciales personales en este repositorio (ni en la raiz, ni subcarpetas).
+- `drive-templates` y `export-client` bloquean ejecucion si `GOOGLE_APPLICATION_CREDENTIALS` apunta a una ruta dentro del repo.
+- Para uso local, guarda el JSON fuera del proyecto y usa una ruta externa (ejemplos: `C:\\secure\\gdrive\\service-account.json`, `/etc/secrets/gdrive/service-account.json`).
+- Si prefieres no usar archivo, usa credenciales por env vars: `GDRIVE_SERVICE_ACCOUNT_EMAIL` + `GDRIVE_SERVICE_ACCOUNT_PRIVATE_KEY`.
+
+### Exportar documento cliente-facing por fase (docs reales)
+
+```bash
+npx rootkid0-initializer export-client 04-management --dry-run
+```
+
+- Alias corto: `npx rootkid0-initializer publish 04-management --dry-run`
+- Fuente: documentos reales de la fase seleccionada (`01-business/`, `02-proposal/`, etc.), usando archivos `NN-*.md`.
+- Comando real: `npx rootkid0-initializer export-client 04-management --parent-folder-id <DRIVE_FOLDER_ID> --date 2026-04-01 --version v1.0`
+- Crea/usa la carpeta de fase correspondiente en Drive (`01-Business` ... `07-Production`) y sube 1 Google Doc consolidado.
+- Naming: `YYYY-MM-DD_<fase>_<slug>_vX.Y`.
+
 ### Uso directo de scripts (fallback)
 
 #### Bash

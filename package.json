@@ -24,7 +24,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "check": "node bin/rootkid0-initializer.js --help"
+    "check": "node bin/rootkid0-initializer.js --help",
+    "drive:templates": "node bin/rootkid0-initializer.js drive-templates --dry-run"
   },
   "keywords": [
     "bootstrap",
