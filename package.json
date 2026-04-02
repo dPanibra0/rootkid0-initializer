@@ -1,6 +1,6 @@
 {
   "name": "rootkid0-initializer",
-  "version": "2.0.1",
+  "version": "0.2.1",
   "description": "CLI para inicializar el flujo de  proyectos al estilo rootkid0.",
   "license": "MIT",
   "type": "commonjs",
